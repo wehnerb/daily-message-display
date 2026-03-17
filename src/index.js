@@ -190,7 +190,7 @@ export default {
 
         if (pool.length === 0) {
           return renderErrorPage(
-            'No active content is available. Add messages to the Google Sheet ' +
+            'No daily safety messages are available. Add messages to the Google Sheet ' +
             'or images to the Drive folder.',
             layout
           );
