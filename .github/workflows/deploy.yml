@@ -1,0 +1,31 @@
+name: Deploy to Cloudflare Workers
+
+on:
+  push:
+    branches:
+      - main      # Deploys to production Worker: slide-timing-proxy
+      - staging   # Deploys to staging Worker:    slide-timing-proxy-staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy
+    steps:
+      - uses: actions/checkout@v4
+
+      # Determine which Wrangler environment to deploy based on the branch.
+      # Pushes to staging use the [env.staging] block in wrangler.toml.
+      # Pushes to main use the root config (no environment flag needed).
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.71.0'
+          environment: ${{ github.ref == 'refs/heads/staging' && 'staging' || '' }}
+          secrets: |
+            GOOGLE_SERVICE_ACCOUNT_EMAIL
+            GOOGLE_PRIVATE_KEY
+        env:
+          GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
