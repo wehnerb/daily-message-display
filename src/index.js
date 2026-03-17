@@ -813,7 +813,7 @@ function buildTextPage(entry, layout, layoutKey, refreshSeconds) {
   // Calculate font sizes and spacing proportionally to layout dimensions.
   const messageFontSize     = Math.floor(Math.min(width, height) * 0.048);
   const attributionFontSize = Math.floor(messageFontSize * 0.58);
-  const labelFontSize       = Math.floor(messageFontSize * 0.38);
+  const labelFontSize       = Math.floor(messageFontSize * 0.68);
   const dividerWidth        = Math.floor(width  * 0.10);
   const paddingV            = Math.floor(height * 0.07);
   const paddingH            = Math.floor(width  * 0.08);
