@@ -1,0 +1,12 @@
+name = "daily-message-display"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# Production Worker: daily-message-display.bwehner.workers.dev
+# Deployed automatically when changes are pushed to the main branch
+
+[env.staging]
+name = "daily-message-display-staging"
+
+# Staging Worker: daily-message-display-staging.bwehner.workers.dev
+# Deployed automatically when changes are pushed to the staging branch
