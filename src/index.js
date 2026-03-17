@@ -811,9 +811,9 @@ function buildTextPage(entry, layout, layoutKey, refreshSeconds) {
   const showLabel = (layoutKey === 'full');
 
   // Calculate font sizes and spacing proportionally to layout dimensions.
-  const messageFontSize     = Math.floor(Math.min(width, height) * 0.048);
-  const attributionFontSize = Math.floor(messageFontSize * 0.58);
-  const labelFontSize       = Math.floor(messageFontSize * 0.38);
+  const messageFontSize     = Math.floor(Math.min(width, height) * 0.048); // Message font size
+  const attributionFontSize = Math.floor(messageFontSize * 0.58); // Attribution font size
+  const labelFontSize       = Math.floor(messageFontSize * 0.45); // Title font size
   const dividerWidth        = Math.floor(width  * 0.10);
   const paddingV            = Math.floor(height * 0.07);
   const paddingH            = Math.floor(width  * 0.08);
