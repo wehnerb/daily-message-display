@@ -513,17 +513,18 @@ async function fetchTextEntries(env, accessToken) {
   const col     = name => headers.indexOf(name.toLowerCase());
 
   const dateCol        = col('date');
-  const typeCol        = col('type');
   const contentCol     = col('content');
   const attributionCol = col('attribution');
   const activeCol      = col('active');
 
   // Required columns must be present. If any are missing, log and return empty
   // so the Worker degrades gracefully rather than throwing an unhandled error.
-  if (typeCol === -1 || contentCol === -1 || activeCol === -1) {
+  // Note: the Type column was intentionally removed — all sheet rows are text
+  // entries by definition. Images are managed exclusively via the Drive folder.
+  if (contentCol === -1 || activeCol === -1) {
     console.error(
       'Google Sheet is missing one or more required columns. ' +
-      'Expected: type, content, active. ' +
+      'Expected: content, active. ' +
       'Columns found: ' + headers.join(', ')
     );
     return [];
@@ -534,16 +535,15 @@ async function fetchTextEntries(env, accessToken) {
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
 
-    const type        = (row[typeCol]        || '').trim().toLowerCase();
     const active      = (row[activeCol]      || '').trim().toLowerCase();
     const content     = (row[contentCol]     || '').trim();
     const date        = dateCol        !== -1 ? (row[dateCol]        || '').trim() : '';
     const attribution = attributionCol !== -1 ? (row[attributionCol] || '').trim() : '';
 
-    // Skip rows that are not text type, not active, or have no content.
-    if (type    !== 'text') continue;
-    if (active  !== 'yes')  continue;
-    if (!content)           continue;
+    // Skip rows that are not active or have no content.
+    // All sheet rows are treated as text entries — images are Drive-managed.
+    if (active  !== 'yes') continue;
+    if (!content)          continue;
 
     // Validate date format if provided. Log and skip rows with bad dates to
     // prevent silent failures that would corrupt the rotation pool.
@@ -811,9 +811,9 @@ function buildTextPage(entry, layout, layoutKey, refreshSeconds) {
   const showLabel = (layoutKey === 'full');
 
   // Calculate font sizes and spacing proportionally to layout dimensions.
-  const messageFontSize     = Math.floor(Math.min(width, height) * 0.048); // Message font size
-  const attributionFontSize = Math.floor(messageFontSize * 0.58); // Attribution font size
-  const labelFontSize       = Math.floor(messageFontSize * 0.45); // Title font size
+  const messageFontSize     = Math.floor(Math.min(width, height) * 0.048);
+  const attributionFontSize = Math.floor(messageFontSize * 0.58);
+  const labelFontSize       = Math.floor(messageFontSize * 0.38);
   const dividerWidth        = Math.floor(width  * 0.10);
   const paddingV            = Math.floor(height * 0.07);
   const paddingH            = Math.floor(width  * 0.08);
