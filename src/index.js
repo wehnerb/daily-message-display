@@ -141,7 +141,12 @@ export default {
     // so the error page renderer always has a valid layout to work with.
     const url         = new URL(request.url);
     const layoutParam = sanitizeParam(url.searchParams.get('layout')) || DEFAULT_LAYOUT;
-    const layout      = LAYOUTS[layoutParam] || LAYOUTS[DEFAULT_LAYOUT];
+    // layoutKey is the resolved string name ('full', 'wide', 'split', 'tri').
+    // Passed to buildTextPage so it can conditionally show the title label,
+    // which is only appropriate on the full layout (other layouts have a
+    // built-in title bar provided by the display system).
+    const layoutKey   = (layoutParam in LAYOUTS) ? layoutParam : DEFAULT_LAYOUT;
+    const layout      = LAYOUTS[layoutKey];
 
     try {
       // Get today's date string in America/Chicago time (YYYY-MM-DD).
@@ -218,7 +223,7 @@ export default {
               'Image fetch failed for "' + selected.name +
               '"; falling back to text entry.'
             );
-            html = buildTextPage(fallbackText, layout, refreshSeconds);
+            html = buildTextPage(fallbackText, layout, layoutKey, refreshSeconds);
           } else {
             return renderErrorPage('Image unavailable. Retrying shortly.', layout);
           }
@@ -226,7 +231,7 @@ export default {
           html = buildImagePage(imageData, layout, refreshSeconds);
         }
       } else {
-        html = buildTextPage(selected, layout, refreshSeconds);
+        html = buildTextPage(selected, layout, layoutKey, refreshSeconds);
       }
 
       return new Response(html, {
@@ -796,10 +801,14 @@ function escapeHtml(str) {
 
 // Builds the rendered text message page. Typography scales proportionally to
 // the layout dimensions so the content is legible across all four layout sizes.
+// The "Daily Safety Message" label and divider are only shown in the full layout
+// because the wide, split, and tri layouts have a built-in title bar provided
+// by the display system — including the label there would be redundant.
 // String concatenation is used throughout (no template literals) to prevent
 // smart-quote corruption when the file is edited in GitHub's browser editor.
-function buildTextPage(entry, layout, refreshSeconds) {
+function buildTextPage(entry, layout, layoutKey, refreshSeconds) {
   const { width, height } = layout;
+  const showLabel = (layoutKey === 'full');
 
   // Calculate font sizes and spacing proportionally to layout dimensions.
   const messageFontSize     = Math.floor(Math.min(width, height) * 0.048);
@@ -872,8 +881,8 @@ function buildTextPage(entry, layout, refreshSeconds) {
     '</head>' +
     '<body>' +
     '<div class="container">' +
-    '<div class="label">Daily Safety Message</div>' +
-    '<div class="divider"></div>' +
+    (showLabel ? '<div class="label">Daily Safety Message</div>' : '') +
+    (showLabel ? '<div class="divider"></div>' : '') +
     '<div class="message">' + content + '</div>' +
     (attribution
       ? '<div class="attribution">&mdash;&nbsp;' + attribution + '</div>'
