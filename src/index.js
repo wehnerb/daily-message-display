@@ -47,7 +47,7 @@ const ROTATION_DAYS = 3;
 // All block boundaries are calculated relative to this date in Central time.
 // Value: January 25, 2026 — a confirmed reference point in the department's
 // 9-day shift rotation. Do not change unless intentionally resetting the cycle.
-const ROTATION_ANCHOR = '2026-01-25';
+const ROTATION_ANCHOR = '2026-01-23';
 
 // Time of day when the message advances to the next block, in America/Chicago
 // time. Matches the department shift change. { hour: 24-hour, minute: 0-59 }
