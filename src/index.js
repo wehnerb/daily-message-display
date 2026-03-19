@@ -55,7 +55,7 @@ const ROTATION_TIME = { hour: 7, minute: 30 };
 
 // Default layout when no ?layout= parameter is provided.
 // Options: 'full', 'wide', 'split', 'tri'
-const DEFAULT_LAYOUT = 'full';
+const DEFAULT_LAYOUT = 'wide';
 
 // Layout pixel dimensions — must match station-image-proxy and
 // river-level-display exactly. Do not change unless display hardware changes.
