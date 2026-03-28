@@ -13,7 +13,7 @@ A Cloudflare Worker that displays rotating daily safety messages and images on f
 
 |Parameter|Default|Options                       |Description                                                                                                                                                                                |
 |---------|-------|------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|`layout` |`full` |`full`, `wide`, `split`, `tri`|Column width matching display hardware. The “Daily Safety Message” title label is only shown in the `full` layout — other layouts have a built-in title bar provided by the display system.|
+|`layout` |`wide` |`full`, `wide`, `split`, `tri`|Column width matching display hardware. The “Daily Safety Message” title label is only shown in the `full` layout — other layouts have a built-in title bar provided by the display system.|
 
 ### Example URLs
 
@@ -30,12 +30,12 @@ https://daily-message-display.bwehner.workers.dev/?layout=tri
 
 ### Layout Dimensions
 
-|Layout |Width (px)|Height (px)|Use Case                     |
-|-------|----------|-----------|-----------------------------|
-|`full` |1920      |1080       |Full-screen display (default)|
-|`wide` |1735      |720        |Single-column display        |
-|`split`|852       |720        |Two-column display           |
-|`tri`  |558       |720        |Three-column display         |
+|Layout |Width (px)|Height (px)|Use Case                       |
+|-------|----------|-----------|-------------------------------|
+|`full` |1920      |1080       |Full-screen display            |
+|`wide` |1735      |720        |Single-column display (default)|
+|`split`|852       |720        |Two-column display             |
+|`tri`  |558       |720        |Three-column display           |
 
 -----
 
@@ -98,7 +98,7 @@ The top of `src/index.js` contains all values that may need to be changed. No ot
 |`ROTATION_DAYS`      |`3`         |Number of calendar days each message displays before advancing. Change to `1` for daily rotation. Sub-daily rotation is not supported.|
 |`ROTATION_ANCHOR`    |`2026-01-23`|Anchor date from which all block boundaries are calculated. Do not change unless intentionally resetting the rotation cycle.          |
 |`IMAGE_SOURCE`       |`'drive'`   |Active image source. Options: `'drive'` (Google Drive) or `'network'` (internal network share — stubbed for future use).              |
-|`DEFAULT_LAYOUT`     |`'full'`    |Layout used when no `?layout=` parameter is provided.                                                                                 |
+|`DEFAULT_LAYOUT`     |`'wide'`    |Layout used when no `?layout=` parameter is provided.                                                                                 |
 |`SHEET_TAB_NAME`     |`'Messages'`|Name of the data tab in the Google Sheet. Update if the tab is ever renamed.                                                          |
 |`ERROR_RETRY_SECONDS`|`60`        |How long the error page waits before auto-retrying.                                                                                   |
 |`MIN_REFRESH_SECONDS`|`300`       |Minimum meta-refresh interval — prevents very short refresh windows just before 7:30 AM.                                              |

@@ -11,7 +11,7 @@
 //
 // Rotation logic:
 //   - Messages display for ROTATION_DAYS consecutive days before advancing
-//   - Rotation anchored to ROTATION_ANCHOR (January 25, 2026)
+//   - Rotation anchored to ROTATION_ANCHOR (January 23, 2026)
 //   - Day boundary at ROTATION_TIME (7:30 AM Central) — DST-safe
 //   - Text and image pools interleaved evenly in a single combined pool
 //   - Date overrides bypass rotation; image wins if both types pinned same day
