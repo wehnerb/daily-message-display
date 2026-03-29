@@ -32,7 +32,7 @@ https://daily-message-display.bwehner.workers.dev/?layout=tri
 
 |Layout |Width (px)|Height (px)|Use Case                       |
 |-------|----------|-----------|-------------------------------|
-|`full` |1920      |1080       |Full-screen display            |
+|`full` |1920      |1075       |Full-screen display            |
 |`wide` |1735      |720        |Single-column display (default)|
 |`split`|852       |720        |Two-column display             |
 |`tri`  |558       |720        |Three-column display           |
