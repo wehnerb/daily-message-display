@@ -2,6 +2,9 @@
 
 A Cloudflare Worker that displays rotating daily safety messages and images on fire station display screens. Text messages are managed via a Google Sheet; images are managed by dropping files into a Google Drive folder. No technical knowledge is required to add or update content.
 
+## System Documentation
+Full system documentation is maintained at: https://github.com/wehnerb/ffd-display-system-documentation
+
 ## Live URLs
 
 |Environment|URL                                                         |
