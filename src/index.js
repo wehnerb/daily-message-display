@@ -956,8 +956,8 @@ function buildImagePage(imageData, layout, refreshSeconds) {
     '  display: block;' +
     '  max-width: ' + width + 'px;' +
     '  max-height: ' + height + 'px;' +
-    '  width: auto;' +
-    '  height: auto;' +
+    '  width: 100%;' +
+    '  height: 100%;' +
     '  object-fit: contain;' +
     '}' +
     '</style>' +
