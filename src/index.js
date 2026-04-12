@@ -871,8 +871,8 @@ function buildTextPage(entry, layout, layoutKey, refreshSeconds) {
     '  width: ' + width + 'px;' +
     '  height: ' + height + 'px;' +
     '  overflow: hidden;' +
-    '  background: #0d1b2a;' +
-    '  color: #dde6f0;' +
+    '  background: ' + (layoutKey === 'full' ? '#111111' : 'transparent') + ';' +
+    '  color: rgba(255,255,255,0.92);' +
     '  display: flex;' +
     '  align-items: center;' +
     '  justify-content: center;' +
@@ -884,32 +884,32 @@ function buildTextPage(entry, layout, layoutKey, refreshSeconds) {
     '  text-align: center;' +
     '}' +
     '.label {' +
-    '  font-family: Arial, Helvetica, sans-serif;' +
+    '  font-family: "Segoe UI", Arial, Helvetica, sans-serif;' +
     '  font-size: ' + labelFontSize + 'px;' +
     '  font-weight: 700;' +
     '  letter-spacing: 0.28em;' +
     '  text-transform: uppercase;' +
-    '  color: #5b9ecf;' +
+    '  color: rgba(255,255,255,0.68);' +
     '  margin-bottom: ' + Math.floor(gapBelow * 0.7) + 'px;' +
     '}' +
     '.divider {' +
     '  width: ' + dividerWidth + 'px;' +
     '  height: 2px;' +
     '  margin: 0 auto ' + gapBelow + 'px;' +
-    '  background: linear-gradient(to right, transparent, #3a7fc1, transparent);' +
+    '  background: linear-gradient(to right, transparent, #C8102E, transparent);' +
     '}' +
     '.message {' +
     '  font-family: Georgia, "Times New Roman", serif;' +
     '  font-size: ' + messageFontSize + 'px;' +
     '  font-style: italic;' +
     '  line-height: 1.65;' +
-    '  color: #dde6f0;' +
+    '  color: rgba(255,255,255,0.92);' +
     '}' +
     '.attribution {' +
     '  margin-top: ' + gapBelow + 'px;' +
-    '  font-family: Arial, Helvetica, sans-serif;' +
+    '  font-family: "Segoe UI", Arial, Helvetica, sans-serif;' +
     '  font-size: ' + attributionFontSize + 'px;' +
-    '  color: #5b9ecf;' +
+    '  color: rgba(255,255,255,0.68);' +
     '  letter-spacing: 0.07em;' +
     '}' +
     '</style>' +
@@ -947,7 +947,7 @@ function buildImagePage(imageData, layout, refreshSeconds) {
     '  width: ' + width + 'px;' +
     '  height: ' + height + 'px;' +
     '  overflow: hidden;' +
-    '  background: #0d1b2a;' +
+    '  background: transparent;' +
     '  display: flex;' +
     '  align-items: center;' +
     '  justify-content: center;' +
@@ -988,9 +988,9 @@ function renderErrorPage(message, layout) {
     '  width: ' + width + 'px;' +
     '  height: ' + height + 'px;' +
     '  margin: 0; padding: 0; overflow: hidden;' +
-    '  background: #0d1b2a;' +
-    '  color: #5b9ecf;' +
-    '  font-family: Arial, Helvetica, sans-serif;' +
+    '  background: transparent;' +
+    '  color: rgba(255,255,255,0.68);' +
+    '  font-family: "Segoe UI", Arial, Helvetica, sans-serif;' +
     '  font-size: ' + fontSize + 'px;' +
     '  display: flex;' +
     '  align-items: center;' +
