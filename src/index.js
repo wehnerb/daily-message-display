@@ -89,6 +89,10 @@ const ERROR_RETRY_SECONDS = 60;
 // from becoming unreasonably short if the Worker runs just before 7:30 AM.
 const MIN_REFRESH_SECONDS = 300;
 
+// Background color used when ?bg=dark is set.
+// Matches the probationary-firefighter-display dark testing background.
+const DARK_BG_COLOR = '#111111';
+
 
 // -----------------------------------------------------------------------------
 // NETWORK SHARE CONFIGURATION (future use — not yet active)
@@ -148,6 +152,10 @@ export default {
     const layoutKey   = (layoutParam in LAYOUTS) ? layoutParam : DEFAULT_LAYOUT;
     const layout      = LAYOUTS[layoutKey];
 
+    // ?bg=dark renders with a solid dark background for browser-based testing.
+    // Matches the probationary-firefighter-display ?bg=dark parameter behaviour.
+    const darkBg = sanitizeParam(url.searchParams.get('bg')) === 'dark';
+
     try {
       // Get today's date string in America/Chicago time (YYYY-MM-DD).
       // All rotation logic uses this value so DST is handled consistently.
@@ -192,7 +200,8 @@ export default {
           return renderErrorPage(
             'No daily safety messages are available. Add messages to the Google Sheet ' +
             'or images to the Drive folder.',
-            layout
+            layout,
+            darkBg
           );
         }
 
@@ -223,38 +232,29 @@ export default {
               'Image fetch failed for "' + selected.name +
               '"; falling back to text entry.'
             );
-            html = buildTextPage(fallbackText, layout, layoutKey, refreshSeconds);
+            html = buildTextPage(fallbackText, layout, layoutKey, refreshSeconds, darkBg);
           } else {
-            return renderErrorPage('Image unavailable. Retrying shortly.', layout);
+            return renderErrorPage('Image unavailable. Retrying shortly.', layout, darkBg);
           }
         } else {
-          html = buildImagePage(imageData, layout, refreshSeconds);
+          html = buildImagePage(imageData, layout, refreshSeconds, darkBg);
         }
       } else {
-        html = buildTextPage(selected, layout, layoutKey, refreshSeconds);
+        html = buildTextPage(selected, layout, layoutKey, refreshSeconds, darkBg);
       }
 
       return new Response(html, {
         status: 200,
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
-          // no-store prevents the browser from caching the HTML page.
-          // The meta-refresh interval controls how often the display reloads.
           'Cache-Control': 'no-store',
-          // Prevent MIME-type sniffing attacks.
           'X-Content-Type-Options': 'nosniff',
-          // NOTE: X-Frame-Options is intentionally NOT set here.
-          // This Worker is embedded as a full-screen iframe by the display
-          // system. Adding X-Frame-Options: SAMEORIGIN would cause immediate
-          // white screens on every station display.
         },
       });
 
     } catch (err) {
-      // Log the full error server-side but return only a generic message to
-      // the client to avoid leaking implementation details.
       console.error('Worker unhandled error:', err);
-      return renderErrorPage('A system error occurred. Retrying shortly.', layout);
+      return renderErrorPage('A system error occurred. Retrying shortly.', layout, darkBg);
     }
   },
 };
@@ -841,7 +841,7 @@ function escapeHtml(str) {
 // by the display system — including the label there would be redundant.
 // String concatenation is used throughout (no template literals) to prevent
 // smart-quote corruption when the file is edited in GitHub's browser editor.
-function buildTextPage(entry, layout, layoutKey, refreshSeconds) {
+function buildTextPage(entry, layout, layoutKey, refreshSeconds, darkBg) {
   const { width, height } = layout;
   const showLabel = (layoutKey === 'full');
 
@@ -871,7 +871,7 @@ function buildTextPage(entry, layout, layoutKey, refreshSeconds) {
     '  width: ' + width + 'px;' +
     '  height: ' + height + 'px;' +
     '  overflow: hidden;' +
-    '  background: ' + (layoutKey === 'full' ? '#111111' : 'transparent') + ';' +
+    '  background: ' + (darkBg || layoutKey === 'full' ? DARK_BG_COLOR : 'transparent') + ';' +
     '  color: rgba(255,255,255,0.92);' +
     '  display: flex;' +
     '  align-items: center;' +
@@ -930,7 +930,7 @@ function buildTextPage(entry, layout, layoutKey, refreshSeconds) {
 
 // Builds the image display page. The image is centered and constrained to the
 // layout dimensions with dark letterboxing if the image aspect ratio differs.
-function buildImagePage(imageData, layout, refreshSeconds) {
+function buildImagePage(imageData, layout, refreshSeconds, darkBg) {
   const { width, height } = layout;
 
   return (
@@ -947,7 +947,7 @@ function buildImagePage(imageData, layout, refreshSeconds) {
     '  width: ' + width + 'px;' +
     '  height: ' + height + 'px;' +
     '  overflow: hidden;' +
-    '  background: transparent;' +
+    '  background: ' + (darkBg ? DARK_BG_COLOR : 'transparent') + ';' +
     '  display: flex;' +
     '  align-items: center;' +
     '  justify-content: center;' +
@@ -971,7 +971,7 @@ function buildImagePage(imageData, layout, refreshSeconds) {
 
 // Builds the error/retry page. Displays a minimal message on the dark
 // background and auto-retries after ERROR_RETRY_SECONDS.
-function renderErrorPage(message, layout) {
+function renderErrorPage(message, layout, darkBg) {
   const { width, height } = layout;
   const safeMessage = escapeHtml(message);
   const fontSize    = Math.floor(Math.min(width, height) * 0.022);
@@ -988,7 +988,7 @@ function renderErrorPage(message, layout) {
     '  width: ' + width + 'px;' +
     '  height: ' + height + 'px;' +
     '  margin: 0; padding: 0; overflow: hidden;' +
-    '  background: transparent;' +
+    '  background: ' + (darkBg ? DARK_BG_COLOR : 'transparent') + ';' +
     '  color: rgba(255,255,255,0.68);' +
     '  font-family: "Segoe UI", Arial, Helvetica, sans-serif;' +
     '  font-size: ' + fontSize + 'px;' +
