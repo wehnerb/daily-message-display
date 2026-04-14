@@ -199,7 +199,7 @@ export default {
         if (pool.length === 0) {
           return renderErrorPage(
             'NO MESSAGES AVAILABLE',
-            'Add content to the Google Sheet or Drive folder',
+            'Check content sources',
             layout,
             darkBg
           );
@@ -254,7 +254,7 @@ export default {
 
     } catch (err) {
       console.error('Worker unhandled error:', err);
-      return renderErrorPage('SYSTEM ERROR', 'Retrying shortly', layout, darkBg);
+      return renderErrorPage('DISPLAY UNAVAILABLE', 'Retrying shortly', layout, darkBg);
     }
   },
 };
