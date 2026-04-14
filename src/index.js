@@ -198,8 +198,8 @@ export default {
 
         if (pool.length === 0) {
           return renderErrorPage(
-            'No daily safety messages are available. Add messages to the Google Sheet ' +
-            'or images to the Drive folder.',
+            'NO MESSAGES AVAILABLE',
+            'Add content to the Google Sheet or Drive folder',
             layout,
             darkBg
           );
@@ -234,7 +234,7 @@ export default {
             );
             html = buildTextPage(fallbackText, layout, layoutKey, refreshSeconds, darkBg);
           } else {
-            return renderErrorPage('Image unavailable. Retrying shortly.', layout, darkBg);
+            return renderErrorPage('IMAGE UNAVAILABLE', 'Retrying shortly', layout, darkBg);
           }
         } else {
           html = buildImagePage(imageData, layout, refreshSeconds, darkBg);
@@ -254,7 +254,7 @@ export default {
 
     } catch (err) {
       console.error('Worker unhandled error:', err);
-      return renderErrorPage('A system error occurred. Retrying shortly.', layout, darkBg);
+      return renderErrorPage('SYSTEM ERROR', 'Retrying shortly', layout, darkBg);
     }
   },
 };
@@ -971,10 +971,10 @@ function buildImagePage(imageData, layout, refreshSeconds, darkBg) {
 
 // Builds the error/retry page. Displays a minimal message on the dark
 // background and auto-retries after ERROR_RETRY_SECONDS.
-function renderErrorPage(message, layout, darkBg) {
+function renderErrorPage(title, subtitle, layout, darkBg) {
   const { width, height } = layout;
-  const safeMessage = escapeHtml(message);
-  const fontSize    = Math.floor(Math.min(width, height) * 0.022);
+  const titleFont = Math.floor(Math.min(width, height) * 0.030);
+  const subFont   = Math.floor(Math.min(width, height) * 0.020);
 
   return new Response(
     '<!DOCTYPE html>' +
@@ -984,22 +984,26 @@ function renderErrorPage(message, layout, darkBg) {
     '<meta http-equiv="refresh" content="' + ERROR_RETRY_SECONDS + '">' +
     '<title>Daily Message</title>' +
     '<style>' +
+    '*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }' +
     'html, body {' +
     '  width: ' + width + 'px;' +
     '  height: ' + height + 'px;' +
-    '  margin: 0; padding: 0; overflow: hidden;' +
+    '  overflow: hidden;' +
     '  background: ' + (darkBg ? DARK_BG_COLOR : 'transparent') + ';' +
-    '  color: rgba(255,255,255,0.68);' +
     '  font-family: "Segoe UI", Arial, Helvetica, sans-serif;' +
-    '  font-size: ' + fontSize + 'px;' +
-    '  display: flex;' +
-    '  align-items: center;' +
-    '  justify-content: center;' +
-    '  text-align: center;' +
+    '  display: flex; align-items: center; justify-content: center;' +
     '}' +
+    '.err-wrap { display: flex; flex-direction: column; align-items: center; gap: ' + Math.floor(subFont * 0.6) + 'px; text-align: center; padding: 0 ' + Math.floor(width * 0.08) + 'px; }' +
+    '.err-title { font-size: ' + titleFont + 'px; font-weight: 700; color: rgba(255,255,255,0.92); letter-spacing: 0.06em; }' +
+    '.err-sub   { font-size: ' + subFont   + 'px; color: rgba(255,255,255,0.55); }' +
     '</style>' +
     '</head>' +
-    '<body>' + safeMessage + '</body>' +
+    '<body>' +
+    '<div class="err-wrap">' +
+    '<div class="err-title">' + escapeHtml(title)    + '</div>' +
+    '<div class="err-sub">'   + escapeHtml(subtitle) + '</div>' +
+    '</div>' +
+    '</body>' +
     '</html>',
     {
       status: 200,
