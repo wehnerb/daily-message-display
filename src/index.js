@@ -1,5 +1,7 @@
 import { fetchWithTimeout } from './shared/fetch-helpers.js';
 import { escapeHtml, sanitizeParam } from './shared/html.js';
+import { getAccessToken } from './shared/google-auth.js';
+import { DARK_BG_COLOR } from './shared/constants.js';
 
 // =============================================================================
 // daily-message-display — Cloudflare Worker
@@ -80,22 +82,12 @@ const IMAGE_SOURCE = 'drive';
 // Update this constant if the tab is ever renamed.
 const SHEET_TAB_NAME = 'Messages';
 
-// Google OAuth2 scope used for all API calls.
-// drive.readonly covers both the Google Sheets API and Google Drive API
-// so a single access token works for all upstream requests.
-const GOOGLE_AUTH_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
-
 // How long the error/retry page waits before reloading (seconds).
 const ERROR_RETRY_SECONDS = 60;
 
 // Minimum meta-refresh interval in seconds. Prevents the refresh interval
 // from becoming unreasonably short if the Worker runs just before 7:30 AM.
 const MIN_REFRESH_SECONDS = 300;
-
-// Background color used when ?bg=dark is set.
-// Matches the probationary-firefighter-display dark testing background.
-const DARK_BG_COLOR = '#111111';
-
 
 // -----------------------------------------------------------------------------
 // NETWORK SHARE CONFIGURATION (future use — not yet active)
@@ -187,7 +179,8 @@ export default {
       // Both the Sheets API and Drive API accept the same drive.readonly token.
       const accessToken = await getAccessToken(
         env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        env.GOOGLE_PRIVATE_KEY
+        env.GOOGLE_PRIVATE_KEY,
+        'https://www.googleapis.com/auth/drive.readonly'
       );
 
       // Fetch text entries from Google Sheets and image entries from the
@@ -429,108 +422,6 @@ function buildInterleavedPool(textEntries, imageEntries) {
   }
 
   return pool;
-}
-
-
-// =============================================================================
-// GOOGLE SERVICE ACCOUNT AUTHENTICATION
-// =============================================================================
-// Generates a short-lived Google OAuth2 access token from service account
-// credentials stored as Worker secrets. Uses RSA-SHA256 JWT signing via the
-// Web Crypto API built into Cloudflare Workers — no external dependencies.
-//
-// This is the same pattern used by slide-timing-proxy.
-//
-// Required secrets (set in Cloudflare Worker settings and deploy.yml):
-//   GOOGLE_SERVICE_ACCOUNT_EMAIL — service account email address
-//   GOOGLE_PRIVATE_KEY           — RSA private key from Google Cloud JSON key file
-// =============================================================================
-
-async function getAccessToken(email, rawPrivateKey) {
-
-  // Step 1 — Build the JWT header and payload.
-  const now     = Math.floor(Date.now() / 1000);
-  const header  = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const payload = base64url(JSON.stringify({
-    iss:   email,
-    scope: GOOGLE_AUTH_SCOPE,
-    aud:   'https://oauth2.googleapis.com/token',
-    iat:   now,
-    exp:   now + 3600,
-  }));
-
-  const signingInput = header + '.' + payload;
-
-  // Step 2 — Import the RSA private key via the Web Crypto API.
-  // The key arrives from the GitHub secret with literal \n sequences;
-  // convert them to real newlines before stripping the PEM envelope.
-  const pemString = rawPrivateKey.replace(/\\n/g, '\n');
-  const pemBody   = pemString
-    .replace('-----BEGIN PRIVATE KEY-----', '')
-    .replace('-----END PRIVATE KEY-----', '')
-    .replace('-----BEGIN RSA PRIVATE KEY-----', '')
-    .replace('-----END RSA PRIVATE KEY-----', '')
-    .replace(/\n/g, '')
-    .trim();
-
-  const binaryKey = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
-
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8',
-    binaryKey,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-
-  // Step 3 — Sign the JWT.
-  // arrayBufferToBase64url uses a byte-by-byte loop rather than the spread
-  // operator to avoid call-stack overflow on large buffers like RSA signatures.
-  const signatureBuf = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    cryptoKey,
-    new TextEncoder().encode(signingInput)
-  );
-
-  const jwt = signingInput + '.' + arrayBufferToBase64url(signatureBuf);
-
-  // Step 4 — Exchange the signed JWT for a short-lived access token.
-  const tokenRes = await fetchWithTimeout('https://oauth2.googleapis.com/token', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=' + jwt,
-  }, 10000);
-
-  if (!tokenRes.ok) {
-    const errText = await tokenRes.text();
-    throw new Error('Token exchange failed (' + tokenRes.status + '): ' + errText);
-  }
-
-  const tokenData = await tokenRes.json();
-  return tokenData.access_token;
-}
-
-// Encodes a string to base64url format (used in JWT construction).
-function base64url(str) {
-  return btoa(str)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
-}
-
-// Converts an ArrayBuffer to base64url using a safe byte-by-byte loop.
-// The spread operator (String.fromCharCode(...bytes)) can throw a RangeError
-// on large buffers — this loop avoids that risk entirely.
-function arrayBufferToBase64url(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
 }
 
 
