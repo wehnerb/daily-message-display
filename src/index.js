@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './shared/fetch-helpers.js';
+
 // =============================================================================
 // daily-message-display — Cloudflare Worker
 // =============================================================================
@@ -473,11 +475,11 @@ async function getAccessToken(email, rawPrivateKey) {
   const jwt = signingInput + '.' + arrayBufferToBase64url(signatureBuf);
 
   // Step 4 — Exchange the signed JWT for a short-lived access token.
-  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+  const tokenRes = await fetchWithTimeout('https://oauth2.googleapis.com/token', {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body:    'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=' + jwt,
-  });
+  }, 10000);
 
   if (!tokenRes.ok) {
     const errText = await tokenRes.text();
@@ -527,10 +529,10 @@ async function fetchTextEntries(env, accessToken) {
     encodeURIComponent(SHEET_TAB_NAME) +
     '?majorDimension=ROWS';
 
-  const res = await fetch(sheetUrl, {
+  const res = await fetchWithTimeout(sheetUrl, {
     headers: { 'Authorization': 'Bearer ' + accessToken },
     cf: { cacheTtl: 0 }, // always fetch fresh data on each Worker invocation
-  });
+  }, 8000);
 
   if (!res.ok) {
     // Log full details server-side; do not surface specifics to the display.
@@ -623,10 +625,10 @@ async function fetchImageEntries(env, accessToken) {
     '&fields=files(id,name,mimeType)' +
     '&pageSize=100';
 
-  const res = await fetch(driveUrl, {
+  const res = await fetchWithTimeout(driveUrl, {
     headers: { 'Authorization': 'Bearer ' + accessToken },
     cf: { cacheTtl: 0 },
-  });
+  }, 8000);
 
   if (!res.ok) {
     console.error('Drive API error (' + res.status + '): ' + await res.text());
@@ -686,10 +688,10 @@ async function fetchNetworkImageEntries(env) {
       'Basic ' + btoa(env.NETWORK_SHARE_USERNAME + ':' + env.NETWORK_SHARE_PASSWORD);
   }
 
-  const res = await fetch(env.NETWORK_SHARE_URL, {
+  const res = await fetchWithTimeout(env.NETWORK_SHARE_URL, {
     headers,
     cf: { cacheTtl: 0 },
-  });
+  }, 8000);
 
   if (!res.ok) {
     console.error(
@@ -765,14 +767,15 @@ async function fetchImageData(entry, env, accessToken) {
         headers['Authorization'] =
           'Basic ' + btoa(env.NETWORK_SHARE_USERNAME + ':' + env.NETWORK_SHARE_PASSWORD);
       }
-      res = await fetch(entry.url, { headers });
+      res = await fetchWithTimeout(entry.url, { headers }, 8000);
 
     } else {
       // Google Drive — request the file's binary content with the access token.
-      res = await fetch(
+      res = await fetchWithTimeout(
         'https://www.googleapis.com/drive/v3/files/' +
           encodeURIComponent(entry.id) + '?alt=media',
-        { headers: { 'Authorization': 'Bearer ' + accessToken } }
+        { headers: { 'Authorization': 'Bearer ' + accessToken } },
+        8000
       );
     }
 
