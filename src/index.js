@@ -2,6 +2,7 @@ import { fetchWithTimeout } from './shared/fetch-helpers.js';
 import { escapeHtml, sanitizeParam } from './shared/html.js';
 import { getAccessToken } from './shared/google-auth.js';
 import { DARK_BG_COLOR } from './shared/constants.js';
+import { getTodayString, getDaysElapsed, getBlockIndex, getSecondsUntilNextRotation } from './shared/rotation.js';
 
 // =============================================================================
 // daily-message-display — Cloudflare Worker
@@ -173,7 +174,7 @@ export default {
     try {
       // Get today's date string in America/Chicago time (YYYY-MM-DD).
       // All rotation logic uses this value so DST is handled consistently.
-      const todayStr = getTodayString();
+      const todayStr = getTodayString(ROTATION_TIME);
 
       // Obtain one Google OAuth2 access token and reuse it for all API calls.
       // Both the Sheets API and Drive API accept the same drive.readonly token.
@@ -220,7 +221,7 @@ export default {
           );
         }
 
-        const blockIndex = getBlockIndex(todayStr);
+        const blockIndex = getBlockIndex(todayStr, ROTATION_ANCHOR, ROTATION_DAYS);
         selected = pool[blockIndex % pool.length];
       }
 
@@ -230,7 +231,7 @@ export default {
       // reloads approximately once per day rather than on every cycle.
       const refreshSeconds = Math.max(
         MIN_REFRESH_SECONDS,
-        getSecondsUntilNextRotation()
+        getSecondsUntilNextRotation(ROTATION_TIME)
       );
 
       // --- Render ---
@@ -274,110 +275,6 @@ export default {
   },
 };
 
-
-// =============================================================================
-// DATE AND ROTATION HELPERS
-// =============================================================================
-
-// Returns today's date string (YYYY-MM-DD) in America/Chicago time.
-// Uses Intl.DateTimeFormat to handle DST transitions correctly.
-// The en-CA locale produces YYYY-MM-DD format natively without string parsing.
-function getTodayString() {
-  const now   = new Date();
-  const parts = {};
-
-  for (const part of new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Chicago',
-    year:     'numeric',
-    month:    '2-digit',
-    day:      '2-digit',
-    hour:     'numeric',
-    minute:   'numeric',
-    hour12:   false,
-  }).formatToParts(now)) {
-    if (part.type !== 'literal') {
-      parts[part.type] = parseInt(part.value, 10);
-    }
-  }
-
-  // If before ROTATION_TIME, use yesterday's date so the message
-  // doesn't advance until 7:30 AM Central rather than at midnight.
-  const secondsSinceMidnight = parts.hour * 3600 + parts.minute * 60;
-  const rotationSecondOfDay  = ROTATION_TIME.hour * 3600 + ROTATION_TIME.minute * 60;
-
-  if (secondsSinceMidnight < rotationSecondOfDay) {
-    // Before 7:30 AM — step back one day
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Chicago',
-      year:     'numeric',
-      month:    '2-digit',
-      day:      '2-digit',
-    }).format(yesterday);
-  }
-
-  // 7:30 AM or later — use today's date
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Chicago',
-    year:     'numeric',
-    month:    '2-digit',
-    day:      '2-digit',
-  }).format(now);
-}
-
-
-// Returns the number of whole calendar days elapsed since ROTATION_ANCHOR
-// in America/Chicago time. Returns 0 if called before the anchor date.
-// Both date strings are treated as UTC midnight for consistent integer-day
-// arithmetic — they are already in Central time (YYYY-MM-DD) so no offset
-// conversion is needed for day-counting purposes.
-function getDaysElapsed(todayStr) {
-  const anchor  = new Date(ROTATION_ANCHOR + 'T00:00:00Z');
-  const today   = new Date(todayStr       + 'T00:00:00Z');
-  const msPerDay = 1000 * 60 * 60 * 24;
-  return Math.max(0, Math.floor((today - anchor) / msPerDay));
-}
-
-// Returns the zero-based index of the current ROTATION_DAYS-day block.
-// The pool index for today is: getBlockIndex(todayStr) % pool.length
-function getBlockIndex(todayStr) {
-  return Math.floor(getDaysElapsed(todayStr) / ROTATION_DAYS);
-}
-
-// Returns the number of seconds until the next ROTATION_TIME in Central time.
-// Used as the meta-refresh interval. DST-safe: Intl.DateTimeFormat is called
-// with America/Chicago so transitions in spring and fall are handled correctly.
-function getSecondsUntilNextRotation() {
-  const now    = new Date();
-  const parts  = {};
-
-  for (const part of new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Chicago',
-    hour:     'numeric',
-    minute:   'numeric',
-    second:   'numeric',
-    hour12:   false,
-  }).formatToParts(now)) {
-    if (part.type !== 'literal') {
-      parts[part.type] = parseInt(part.value, 10);
-    }
-  }
-
-  const secondsSinceMidnight =
-    parts.hour * 3600 + parts.minute * 60 + parts.second;
-
-  const rotationSecondOfDay =
-    ROTATION_TIME.hour * 3600 + ROTATION_TIME.minute * 60;
-
-  let secondsUntil = rotationSecondOfDay - secondsSinceMidnight;
-
-  // If today's rotation time has already passed, target tomorrow's.
-  if (secondsUntil <= 0) {
-    secondsUntil += 24 * 3600;
-  }
-
-  return secondsUntil;
-}
 
 
 // =============================================================================
