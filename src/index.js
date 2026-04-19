@@ -1,4 +1,5 @@
 import { fetchWithTimeout } from './shared/fetch-helpers.js';
+import { escapeHtml, sanitizeParam } from './shared/html.js';
 
 // =============================================================================
 // daily-message-display — Cloudflare Worker
@@ -47,7 +48,7 @@ const ROTATION_DAYS = 3;
 
 // Anchor date for the rotation cycle in YYYY-MM-DD format.
 // All block boundaries are calculated relative to this date in Central time.
-// Value: January 25, 2026 — a confirmed reference point in the department's
+// Value: January 23, 2026 — a confirmed reference point in the department's
 // 9-day shift rotation. Do not change unless intentionally resetting the cycle.
 const ROTATION_ANCHOR = '2026-01-23';
 
@@ -157,6 +158,25 @@ export default {
     // ?bg=dark renders with a solid dark background for browser-based testing.
     // Matches the probationary-firefighter-display ?bg=dark parameter behaviour.
     const darkBg = sanitizeParam(url.searchParams.get('bg')) === 'dark';
+
+    var REQUIRED_SECRETS = [
+      'GOOGLE_SERVICE_ACCOUNT_EMAIL',
+      'GOOGLE_PRIVATE_KEY',
+      'GOOGLE_SHEET_ID',
+      'GOOGLE_DRIVE_FOLDER_ID'
+    ];
+    for (var i = 0; i < REQUIRED_SECRETS.length; i++) {
+      var key = REQUIRED_SECRETS[i];
+      if (!env[key]) {
+        console.error('[daily-message-display] Missing required secret: ' + key);
+        return renderErrorPage(
+          'CONFIGURATION ERROR',
+          'Missing secret: ' + key,
+          layout,
+          darkBg
+        );
+      }
+    }
 
     try {
       // Get today's date string in America/Chicago time (YYYY-MM-DD).
@@ -806,30 +826,6 @@ async function fetchImageData(entry, env, accessToken) {
     console.error('Image fetch exception for "' + (entry.name || entry.url) + '":', err);
     return null;
   }
-}
-
-
-// =============================================================================
-// INPUT HELPERS
-// =============================================================================
-
-// Sanitizes a URL parameter value to prevent injection.
-// Allows only alphanumeric characters, hyphens, and underscores.
-function sanitizeParam(value) {
-  if (!value || typeof value !== 'string') return null;
-  return value.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
-}
-
-// Escapes a string for safe insertion into HTML content.
-// Replaces all characters with special meaning in HTML to prevent XSS.
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 
