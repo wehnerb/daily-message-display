@@ -1,8 +1,9 @@
 import { fetchWithTimeout } from './shared/fetch-helpers.js';
 import { escapeHtml, sanitizeParam } from './shared/html.js';
 import { getAccessToken } from './shared/google-auth.js';
-import { DARK_BG_COLOR } from './shared/constants.js';
 import { getTodayString, getDaysElapsed, getBlockIndex, getSecondsUntilNextRotation } from './shared/rotation.js';
+import { DARK_BG_COLOR, FONT_STACK, ACCENT_COLOR, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, BORDER_SUBTLE, BORDER_STRONG, CARD_BASE, CARD_ELEVATED, CARD_HEADER, CARD_RECESSED } from './shared/colors.js';
+import { LAYOUTS } from './shared/layouts.js';
 
 // =============================================================================
 // daily-message-display — Cloudflare Worker
@@ -62,15 +63,6 @@ const ROTATION_TIME = { hour: 7, minute: 30 };
 // Default layout when no ?layout= parameter is provided.
 // Options: 'full', 'wide', 'split', 'tri'
 const DEFAULT_LAYOUT = 'wide';
-
-// Layout pixel dimensions — must match station-image-proxy and
-// river-level-display exactly. Do not change unless display hardware changes.
-const LAYOUTS = {
-  full:  { width: 1920, height: 1075 },
-  wide:  { width: 1735, height: 720  },
-  split: { width: 852,  height: 720  },
-  tri:   { width: 558,  height: 720  },
-};
 
 // Active image source.
 //   'drive'   — Google Drive folder (uses GOOGLE_DRIVE_FOLDER_ID secret)
@@ -659,7 +651,7 @@ function buildTextPage(entry, layout, layoutKey, refreshSeconds, darkBg) {
     '  height: ' + height + 'px;' +
     '  overflow: hidden;' +
     '  background: ' + (darkBg || layoutKey === 'full' ? DARK_BG_COLOR : 'transparent') + ';' +
-    '  color: rgba(255,255,255,0.92);' +
+    '  color: ' + TEXT_PRIMARY + ';' +
     '  display: flex;' +
     '  align-items: center;' +
     '  justify-content: center;' +
@@ -671,32 +663,32 @@ function buildTextPage(entry, layout, layoutKey, refreshSeconds, darkBg) {
     '  text-align: center;' +
     '}' +
     '.label {' +
-    '  font-family: "Segoe UI", Arial, Helvetica, sans-serif;' +
+    '  font-family: ' + FONT_STACK + ';' +
     '  font-size: ' + labelFontSize + 'px;' +
     '  font-weight: 700;' +
     '  letter-spacing: 0.28em;' +
     '  text-transform: uppercase;' +
-    '  color: rgba(255,255,255,0.68);' +
+    '  color: ' + TEXT_SECONDARY + ';' +
     '  margin-bottom: ' + Math.floor(gapBelow * 0.7) + 'px;' +
     '}' +
     '.divider {' +
     '  width: ' + dividerWidth + 'px;' +
     '  height: 2px;' +
     '  margin: 0 auto ' + gapBelow + 'px;' +
-    '  background: linear-gradient(to right, transparent, #C8102E, transparent);' +
+    '  background: linear-gradient(to right, transparent, ' + ACCENT_COLOR + ', transparent);' +
     '}' +
     '.message {' +
     '  font-family: Georgia, "Times New Roman", serif;' +
     '  font-size: ' + messageFontSize + 'px;' +
     '  font-style: italic;' +
     '  line-height: 1.65;' +
-    '  color: rgba(255,255,255,0.92);' +
+    '  color: ' + TEXT_PRIMARY + ';' +
     '}' +
     '.attribution {' +
     '  margin-top: ' + gapBelow + 'px;' +
-    '  font-family: "Segoe UI", Arial, Helvetica, sans-serif;' +
+    '  font-family: ' + FONT_STACK + ';' +
     '  font-size: ' + attributionFontSize + 'px;' +
-    '  color: rgba(255,255,255,0.68);' +
+    '  color: ' + TEXT_SECONDARY + ';' +
     '  letter-spacing: 0.07em;' +
     '}' +
     '</style>' +
@@ -777,12 +769,12 @@ function renderErrorPage(title, subtitle, layout, darkBg) {
     '  height: ' + height + 'px;' +
     '  overflow: hidden;' +
     '  background: ' + (darkBg ? DARK_BG_COLOR : 'transparent') + ';' +
-    '  font-family: "Segoe UI", Arial, Helvetica, sans-serif;' +
+    '  font-family: ' + FONT_STACK + ';' +
     '  display: flex; align-items: center; justify-content: center;' +
     '}' +
     '.err-wrap { display: flex; flex-direction: column; align-items: center; gap: ' + Math.floor(subFont * 0.6) + 'px; text-align: center; padding: 0 ' + Math.floor(width * 0.08) + 'px; }' +
-    '.err-title { font-size: ' + titleFont + 'px; font-weight: 700; color: #C8102E; letter-spacing: 0.06em; }' +
-    '.err-sub   { font-size: ' + subFont   + 'px; color: rgba(255,255,255,0.92); }' +
+    '.err-title { font-size: ' + titleFont + 'px; font-weight: 700; color: ' + ACCENT_COLOR + '; letter-spacing: 0.06em; }' +
+    '.err-sub   { font-size: ' + subFont   + 'px; color: ' + TEXT_PRIMARY + '; }' +
     '</style>' +
     '</head>' +
     '<body>' +
