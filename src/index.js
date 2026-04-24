@@ -82,6 +82,15 @@ const ERROR_RETRY_SECONDS = 60;
 // from becoming unreasonably short if the Worker runs just before 7:30 AM.
 const MIN_REFRESH_SECONDS = 300;
 
+// Multiplier used to compute the message text font size as a proportion
+// of the smaller display dimension (width or height). Increase to make
+// text larger, decrease to make it smaller.
+// Formula: Math.floor(Math.min(width, height) * MESSAGE_FONT_SCALE)
+// Example at wide layout (720px min): 720 * 0.055 = 39px
+// Example at full layout (1075px min): 1075 * 0.055 = 59px
+// Only applies to text messages — image slides are unaffected.
+const MESSAGE_FONT_SCALE = 0.055;
+
 // -----------------------------------------------------------------------------
 // NETWORK SHARE CONFIGURATION (future use — not yet active)
 // -----------------------------------------------------------------------------
@@ -665,7 +674,7 @@ function buildTextPage(entry, layout, layoutKey, refreshSeconds, darkBg) {
   const showLabel = (layoutKey === 'full');
 
   // Calculate font sizes and spacing proportionally to layout dimensions.
-  const messageFontSize     = Math.floor(Math.min(width, height) * 0.048); // Message font size as a % of the smaller of height or width dimensions (1080*.048 = 51px font size)
+  const messageFontSize     = Math.floor(Math.min(width, height) * MESSAGE_FONT_SCALE); // Message font size as a % of the smaller of height or width dimensions (1080*.048 = 51px font size)
   const attributionFontSize = Math.floor(messageFontSize * 0.58); // Attribution label font size as a % of the message font size
   const labelFontSize       = Math.floor(messageFontSize * 0.68); // Title font size as a % of the message font size
   const dividerWidth        = Math.floor(width  * 0.10);
