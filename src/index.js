@@ -35,8 +35,8 @@ import { LAYOUTS } from './shared/layouts.js';
 //   - All user-provided content HTML-escaped before injection into pages
 //   - No X-Frame-Options header — this Worker is loaded as a full-screen iframe
 //     by the display system; SAMEORIGIN would cause immediate white screens
-//   - Drive/network images proxied server-side — displays never contact image
-//     sources directly
+//   - Drive images: browser fetches directly via authenticated URL (no encoding)
+//   - Network share images: proxied server-side with Basic auth
 // =============================================================================
 
 
@@ -607,49 +607,51 @@ async function fetchNetworkImageEntries(env) {
 // the Worker to exceed Cloudflare's memory limits.
 async function fetchImageData(entry, env, accessToken) {
   try {
-    let res;
-
     if (entry.source === 'network') {
-      // Network share — use the same Basic auth as the directory listing.
+      // Network share — fetch with Basic auth and encode server-side.
       const headers = {};
       if (env.NETWORK_SHARE_USERNAME && env.NETWORK_SHARE_PASSWORD) {
         headers['Authorization'] =
           'Basic ' + btoa(env.NETWORK_SHARE_USERNAME + ':' + env.NETWORK_SHARE_PASSWORD);
       }
-      res = await fetchWithTimeout(entry.url, { headers }, 8000);
+      const res = await fetchWithTimeout(entry.url, { headers }, 8000);
+
+      if (!res.ok) {
+        console.error(
+          'Image fetch error (' + res.status + ') for: ' + (entry.name || entry.url)
+        );
+        return null;
+      }
+
+      // Convert binary response to base64 in fixed-size chunks to avoid
+      // call-stack overflow on large images (same safe pattern as other Workers).
+      const arrayBuffer = await res.arrayBuffer();
+      const bytes       = new Uint8Array(arrayBuffer);
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+
+      const mimeType = entry.mimeType || 'image/jpeg';
+      return {
+        dataUri: 'data:' + mimeType + ';base64,' + btoa(binary),
+        mimeType,
+      };
 
     } else {
-      // Google Drive — request the file's binary content with the access token.
-      res = await fetchWithTimeout(
-        'https://www.googleapis.com/drive/v3/files/' +
-          encodeURIComponent(entry.id) + '?alt=media',
-        { headers: { 'Authorization': 'Bearer ' + accessToken } },
-        8000
-      );
+      // Google Drive — construct an authenticated URL so the browser
+      // fetches the image directly from Drive. The access token is
+      // short-lived (1 hour) and the file is non-sensitive (safety images).
+      // No server-side encoding required — eliminates CPU limit errors.
+      const mimeType = entry.mimeType || 'image/jpeg';
+      return {
+        dataUri: 'https://www.googleapis.com/drive/v3/files/' +
+          encodeURIComponent(entry.id) + '?alt=media&access_token=' +
+          encodeURIComponent(accessToken),
+        mimeType,
+      };
     }
-
-    if (!res.ok) {
-      console.error(
-        'Image fetch error (' + res.status + ') for: ' + (entry.name || entry.url)
-      );
-      return null;
-    }
-
-    // Convert binary response to base64 in fixed-size chunks to avoid
-    // call-stack overflow on large images (same safe pattern as other Workers).
-    const arrayBuffer = await res.arrayBuffer();
-    const bytes       = new Uint8Array(arrayBuffer);
-    let binary = '';
-    const chunkSize = 8192;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-    }
-
-    const mimeType = entry.mimeType || 'image/jpeg';
-    return {
-      dataUri: 'data:' + mimeType + ';base64,' + btoa(binary),
-      mimeType,
-    };
 
   } catch (err) {
     console.error('Image fetch exception for "' + (entry.name || entry.url) + '":', err);
