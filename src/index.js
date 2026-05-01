@@ -142,6 +142,45 @@ export default {
     // so the error page renderer always has a valid layout to work with.
     const url         = new URL(request.url);
 
+    // Image proxy route: /image/{fileId}
+    // Fetches a Drive image using a fresh service account token and streams
+    // bytes directly to the browser. No base64 encoding — eliminates CPU
+    // limit errors on large images. Token stays server-side only.
+    if (url.pathname.startsWith('/image/')) {
+      var imageFileId = url.pathname.slice('/image/'.length);
+      if (!imageFileId) {
+        return new Response('Not found', { status: 404 });
+      }
+      try {
+        var imageToken = await getAccessToken(
+          env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+          env.GOOGLE_PRIVATE_KEY,
+          'https://www.googleapis.com/auth/drive.readonly'
+        );
+        var imageRes = await fetchWithTimeout(
+          'https://www.googleapis.com/drive/v3/files/' +
+            encodeURIComponent(imageFileId) + '?alt=media',
+          { headers: { 'Authorization': 'Bearer ' + imageToken } },
+          8000
+        );
+        if (!imageRes.ok) {
+          console.error('Image proxy: Drive fetch failed (' + imageRes.status + ') for fileId: ' + imageFileId);
+          return new Response('Image unavailable', { status: 502 });
+        }
+        return new Response(imageRes.body, {
+          status: 200,
+          headers: {
+            'Content-Type':           imageRes.headers.get('Content-Type') || 'image/jpeg',
+            'Cache-Control':          'no-store',
+            'X-Content-Type-Options': 'nosniff',
+          },
+        });
+      } catch (e) {
+        console.error('Image proxy error for fileId "' + imageFileId + '":', e && e.message ? e.message : e);
+        return new Response('Image unavailable', { status: 502 });
+      }
+    }
+
     if (url.pathname === '/healthz') {
       var healthStatus = 'healthy';
       var healthDetail = '';
@@ -640,15 +679,12 @@ async function fetchImageData(entry, env, accessToken) {
       };
 
     } else {
-      // Google Drive — construct an authenticated URL so the browser
-      // fetches the image directly from Drive. The access token is
-      // short-lived (1 hour) and the file is non-sensitive (safety images).
-      // No server-side encoding required — eliminates CPU limit errors.
+      // Google Drive — use the streaming proxy route so the token stays
+      // server-side. The browser requests /image/{fileId} from this Worker
+      // which fetches from Drive and streams bytes directly.
       const mimeType = entry.mimeType || 'image/jpeg';
       return {
-        dataUri: 'https://www.googleapis.com/drive/v3/files/' +
-          encodeURIComponent(entry.id) + '?alt=media&access_token=' +
-          encodeURIComponent(accessToken),
+        dataUri: '/image/' + encodeURIComponent(entry.id),
         mimeType,
       };
     }
