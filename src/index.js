@@ -35,8 +35,8 @@ import { LAYOUTS } from './shared/layouts.js';
 //   - All user-provided content HTML-escaped before injection into pages
 //   - No X-Frame-Options header — this Worker is loaded as a full-screen iframe
 //     by the display system; SAMEORIGIN would cause immediate white screens
-//   - Drive/network images proxied server-side — displays never contact image
-//     sources directly
+//   - Drive images: browser fetches directly via authenticated URL (no encoding)
+//   - Network share images: proxied server-side with Basic auth
 // =============================================================================
 
 
@@ -141,6 +141,45 @@ export default {
     // Parse and validate the layout URL parameter before entering the try block
     // so the error page renderer always has a valid layout to work with.
     const url         = new URL(request.url);
+
+    // Image proxy route: /image/{fileId}
+    // Fetches a Drive image using a fresh service account token and streams
+    // bytes directly to the browser. No base64 encoding — eliminates CPU
+    // limit errors on large images. Token stays server-side only.
+    if (url.pathname.startsWith('/image/')) {
+      var imageFileId = url.pathname.slice('/image/'.length);
+      if (!imageFileId) {
+        return new Response('Not found', { status: 404 });
+      }
+      try {
+        var imageToken = await getAccessToken(
+          env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+          env.GOOGLE_PRIVATE_KEY,
+          'https://www.googleapis.com/auth/drive.readonly'
+        );
+        var imageRes = await fetchWithTimeout(
+          'https://www.googleapis.com/drive/v3/files/' +
+            encodeURIComponent(imageFileId) + '?alt=media',
+          { headers: { 'Authorization': 'Bearer ' + imageToken } },
+          8000
+        );
+        if (!imageRes.ok) {
+          console.error('Image proxy: Drive fetch failed (' + imageRes.status + ') for fileId: ' + imageFileId);
+          return new Response('Image unavailable', { status: 502 });
+        }
+        return new Response(imageRes.body, {
+          status: 200,
+          headers: {
+            'Content-Type':           imageRes.headers.get('Content-Type') || 'image/jpeg',
+            'Cache-Control':          'no-store',
+            'X-Content-Type-Options': 'nosniff',
+          },
+        });
+      } catch (e) {
+        console.error('Image proxy error for fileId "' + imageFileId + '":', e && e.message ? e.message : e);
+        return new Response('Image unavailable', { status: 502 });
+      }
+    }
 
     if (url.pathname === '/healthz') {
       var healthStatus = 'healthy';
@@ -607,49 +646,48 @@ async function fetchNetworkImageEntries(env) {
 // the Worker to exceed Cloudflare's memory limits.
 async function fetchImageData(entry, env, accessToken) {
   try {
-    let res;
-
     if (entry.source === 'network') {
-      // Network share — use the same Basic auth as the directory listing.
+      // Network share — fetch with Basic auth and encode server-side.
       const headers = {};
       if (env.NETWORK_SHARE_USERNAME && env.NETWORK_SHARE_PASSWORD) {
         headers['Authorization'] =
           'Basic ' + btoa(env.NETWORK_SHARE_USERNAME + ':' + env.NETWORK_SHARE_PASSWORD);
       }
-      res = await fetchWithTimeout(entry.url, { headers }, 8000);
+      const res = await fetchWithTimeout(entry.url, { headers }, 8000);
+
+      if (!res.ok) {
+        console.error(
+          'Image fetch error (' + res.status + ') for: ' + (entry.name || entry.url)
+        );
+        return null;
+      }
+
+      // Convert binary response to base64 in fixed-size chunks to avoid
+      // call-stack overflow on large images (same safe pattern as other Workers).
+      const arrayBuffer = await res.arrayBuffer();
+      const bytes       = new Uint8Array(arrayBuffer);
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+
+      const mimeType = entry.mimeType || 'image/jpeg';
+      return {
+        dataUri: 'data:' + mimeType + ';base64,' + btoa(binary),
+        mimeType,
+      };
 
     } else {
-      // Google Drive — request the file's binary content with the access token.
-      res = await fetchWithTimeout(
-        'https://www.googleapis.com/drive/v3/files/' +
-          encodeURIComponent(entry.id) + '?alt=media',
-        { headers: { 'Authorization': 'Bearer ' + accessToken } },
-        8000
-      );
+      // Google Drive — use the streaming proxy route so the token stays
+      // server-side. The browser requests /image/{fileId} from this Worker
+      // which fetches from Drive and streams bytes directly.
+      const mimeType = entry.mimeType || 'image/jpeg';
+      return {
+        dataUri: '/image/' + encodeURIComponent(entry.id),
+        mimeType,
+      };
     }
-
-    if (!res.ok) {
-      console.error(
-        'Image fetch error (' + res.status + ') for: ' + (entry.name || entry.url)
-      );
-      return null;
-    }
-
-    // Convert binary response to base64 in fixed-size chunks to avoid
-    // call-stack overflow on large images (same safe pattern as other Workers).
-    const arrayBuffer = await res.arrayBuffer();
-    const bytes       = new Uint8Array(arrayBuffer);
-    let binary = '';
-    const chunkSize = 8192;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-    }
-
-    const mimeType = entry.mimeType || 'image/jpeg';
-    return {
-      dataUri: 'data:' + mimeType + ';base64,' + btoa(binary),
-      mimeType,
-    };
 
   } catch (err) {
     console.error('Image fetch exception for "' + (entry.name || entry.url) + '":', err);
