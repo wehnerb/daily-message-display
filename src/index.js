@@ -2,7 +2,7 @@ import { fetchWithTimeout } from './shared/fetch-helpers.js';
 import { escapeHtml, sanitizeParam } from './shared/html.js';
 import { getAccessToken } from './shared/google-auth.js';
 import { getTodayString, getDaysElapsed, getBlockIndex, getSecondsUntilNextRotation } from './shared/rotation.js';
-import { DARK_BG_COLOR, FONT_STACK, ACCENT_COLOR, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, BORDER_SUBTLE, BORDER_STRONG, CARD_BASE, CARD_ELEVATED, CARD_HEADER, CARD_RECESSED } from './shared/colors.js';
+import { DARK_BG_COLOR, FONT_STACK, FONT_STACK_SERIF, ACCENT_COLOR, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, BORDER_SUBTLE, BORDER_STRONG, CARD_BASE, CARD_ELEVATED, CARD_HEADER, CARD_RECESSED } from './shared/colors.js';
 import { LAYOUTS } from './shared/layouts.js';
 
 // =============================================================================
@@ -771,7 +771,7 @@ function buildTextPage(entry, layout, layoutKey, refreshSeconds, darkBg) {
     '  background: linear-gradient(to right, transparent, ' + ACCENT_COLOR + ', transparent);' +
     '}' +
     '.message {' +
-    '  font-family: Georgia, "Times New Roman", serif;' +
+    '  font-family: ' + FONT_STACK_SERIF + ';' +
     '  font-size: ' + messageFontSize + 'px;' +
     '  font-style: italic;' +
     '  line-height: 1.65;' +
