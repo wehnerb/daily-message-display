@@ -35,7 +35,7 @@ import { LAYOUTS } from './shared/layouts.js';
 //   - All user-provided content HTML-escaped before injection into pages
 //   - No X-Frame-Options header — this Worker is loaded as a full-screen iframe
 //     by the display system; SAMEORIGIN would cause immediate white screens
-//   - Drive images: browser fetches directly via authenticated URL (no encoding)
+//   - Drive images: served via the Worker's /image/{fileId} streaming proxy route; browser never contacts Drive directly
 //   - Network share images: proxied server-side with Basic auth
 // =============================================================================
 
@@ -640,16 +640,21 @@ async function fetchNetworkImageEntries(env) {
 
 
 // =============================================================================
-// IMAGE FETCHING — server-side proxy
+// IMAGE FETCHING — Drive streaming proxy or network share base64
 // =============================================================================
-// Fetches the binary image data server-side and returns it as a base64
-// data URI. The display browser receives only the embedded data URI —
-// it never contacts Google Drive or the network share directly.
-//
 // Returns { dataUri, mimeType } on success, or null on any failure.
-// Note: images should be optimized to a reasonable file size before adding
-// to the Drive folder or network share. Very large files (>5 MB) may cause
-// the Worker to exceed Cloudflare's memory limits.
+//
+// Drive path: returns a Worker-relative /image/{fileId} URL. The display
+//   browser requests this URL, the Worker fetches from Drive server-side
+//   using the service account token and streams bytes directly to the browser.
+//   No base64 encoding is performed. The token never appears in any URL
+//   visible to the browser.
+//
+// Network share path: fetches the image server-side and base64-encodes it
+//   into a data URI that is embedded directly in the HTML page. The browser
+//   never contacts the network share. Note: optimize network share images
+//   before adding them — very large files (>5 MB) may approach Cloudflare's
+//   Worker memory limits.
 async function fetchImageData(entry, env, accessToken) {
   try {
     if (entry.source === 'network') {
